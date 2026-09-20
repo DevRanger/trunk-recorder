@@ -44,9 +44,16 @@ void set_logging_level(std::string log_level) {
 struct NoColorLoggingFormatter {
   void operator()(logging::record_view const &rec, logging::formatting_ostream &strm) const {
     auto message = rec.attribute_values()[logging::aux::default_attribute_names::message()];
-    auto message_str = message.extract<std::string>().get();
+    const auto &message_str = message.extract<std::string>().get();
 
-    std::regex escape_seq_regex("\u001B\\[[0-9;]+m");
+    // Plain messages need no color stripping or temporary string.
+    if (message_str.find('\x1b') == std::string::npos) {
+      strm << message_str;
+      return;
+    }
+
+    // Reuse the compiled expression across console and file log entries.
+    static const std::regex escape_seq_regex("\u001B\\[[0-9;]+m");
     strm << std::regex_replace(message_str, escape_seq_regex, "");
   }
 };

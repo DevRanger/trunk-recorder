@@ -407,8 +407,7 @@ void manage_calls(Config &config, std::vector<Call *> &calls) {
 
       int slot = call->get_tdma_slot();
       if ((recorder->since_last_write(slot) > config.call_timeout) && (call->since_last_update() > config.call_timeout)) {
-        std::string loghdr = log_header( call->get_short_name(), call->get_call_num(), call->get_talkgroup_display(), call->get_freq());
-        BOOST_LOG_TRIVIAL(trace) << loghdr << "\u001b[36m Stopping Call because of Recorder \u001b[0m Rec last write: " << recorder->since_last_write(slot) << " State: " << format_state(recorder->get_state(slot));
+        BOOST_LOG_TRIVIAL(trace) << log_header( call->get_short_name(), call->get_call_num(), call->get_talkgroup_display(), call->get_freq()) << "\u001b[36m Stopping Call because of Recorder \u001b[0m Rec last write: " << recorder->since_last_write(slot) << " State: " << format_state(recorder->get_state(slot));
         call->conclude_call();
         // The State of the Recorders has changed, so lets send an update
         ended_call = true;
@@ -422,8 +421,7 @@ void manage_calls(Config &config, std::vector<Call *> &calls) {
     } else if (call->since_last_update() > config.call_timeout) {
       Recorder *recorder = call->get_recorder();
       int slot = call->get_tdma_slot();
-      std::string loghdr = log_header( call->get_short_name(), call->get_call_num(), call->get_talkgroup_display(), call->get_freq());
-      BOOST_LOG_TRIVIAL(trace) << loghdr << "\u001b[36m  Call UPDATEs has been inactive for more than " << config.call_timeout << " Sec \u001b[0m Rec last write: " << recorder->since_last_write(slot) << " State: " << format_state(recorder->get_state(slot));
+      BOOST_LOG_TRIVIAL(trace) << log_header( call->get_short_name(), call->get_call_num(), call->get_talkgroup_display(), call->get_freq()) << "\u001b[36m  Call UPDATEs has been inactive for more than " << config.call_timeout << " Sec \u001b[0m Rec last write: " << recorder->since_last_write(slot) << " State: " << format_state(recorder->get_state(slot));
     }
     ++it;
   } // foreach loggers
@@ -585,12 +583,8 @@ void handle_call_grant(const TrunkMessage &message, System *sys, bool grant_mess
     // keep writing to the file until it hits a termination flag, so no packets should be dropped.
     if ((call->get_state() == RECORDING) && (call->get_talkgroup() != message.talkgroup) && (call->get_sys_num() == message.sys_num) && (call->get_freq() == message.freq) && (call->get_tdma_slot() == message.tdma_slot) && (call->get_phase2_tdma() == message.phase2_tdma)) {
       Recorder *recorder = call->get_recorder();
-      string recorder_state = "UNKNOWN";
-      if (recorder != NULL) {
-        recorder_state = format_state(recorder->get_state());
-      }
-      std::string loghdr = log_header( call->get_short_name(), call->get_call_num(), call->get_talkgroup_display(), call->get_freq());
-      BOOST_LOG_TRIVIAL(trace) << loghdr << "\u001b[36mShould be Stopping RECORDING call, Recorder State: " << recorder_state << " RX overlapping TG message Freq, TG:" << message.talkgroup << "\u001b[0m";
+      // Keep diagnostic formatting inside the log expression when trace is disabled.
+      BOOST_LOG_TRIVIAL(trace) << log_header( call->get_short_name(), call->get_call_num(), call->get_talkgroup_display(), call->get_freq()) << "\u001b[36mShould be Stopping RECORDING call, Recorder State: " << (recorder ? format_state(recorder->get_state()) : "UNKNOWN") << " RX overlapping TG message Freq, TG:" << message.talkgroup << "\u001b[0m";
     }
 
     it++;
