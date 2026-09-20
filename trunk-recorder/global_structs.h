@@ -55,6 +55,7 @@ struct Config {
   bool archive_files_on_failure;
   int frequency_format;
   std::string filename_format;
+  bool track_ignored_calls = true;
 };
 
 struct Audio_Postprocess_Config {

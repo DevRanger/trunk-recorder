@@ -2,6 +2,8 @@
 #include "recorders/p25_recorder.h"
 #include "systems/dmr_parser.h"
 #include <chrono>
+#include <map>
+#include <tuple>
 #include <boost/log/sinks/text_file_backend.hpp>
 #include <boost/log/core.hpp>
 
@@ -13,6 +15,48 @@ extern boost::shared_ptr<boost::log::sinks::synchronous_sink<boost::log::sinks::
 volatile sig_atomic_t exit_flag = 0;
 volatile sig_atomic_t rotate_log_flag = 0;
 int exit_code = EXIT_SUCCESS;
+
+// Keep only the identity and last update of skipped encrypted calls. UPDATEs
+// without service options must not restart them before the normal call timeout.
+using IgnoredCallKey = std::tuple<int, long, double, int, bool>;
+static std::map<IgnoredCallKey, time_t> ignored_encrypted_calls;
+
+static IgnoredCallKey ignored_call_key(const TrunkMessage &message) {
+  return std::make_tuple(message.sys_num, message.talkgroup, message.freq, message.tdma_slot, message.phase2_tdma);
+}
+
+static bool ignore_new_call(const TrunkMessage &message, System *sys, Talkgroup *talkgroup) {
+  if (message.encrypted && !sys->get_monitorEncrypted()) {
+    return true;
+  }
+
+  if (!talkgroup) {
+    if (sys->get_record_unknown()) {
+      return false;
+    }
+    // Preserve the existing exception for unknown supergroups with known members.
+    for (auto &tgid : sys->get_talkgroup_patch(message.talkgroup)) {
+      if (sys->find_talkgroup(tgid)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  if (!sys->get_monitorEncrypted() && (talkgroup->mode == "E" || talkgroup->mode == "TE" || talkgroup->mode == "DE")) {
+    return true;
+  }
+
+  // Use the same effective priority as start_recorder, including patch members.
+  int priority = talkgroup->get_priority();
+  for (auto &tgid : sys->get_talkgroup_patch(message.talkgroup)) {
+    Talkgroup *patched_talkgroup = sys->find_talkgroup(tgid);
+    if (patched_talkgroup && patched_talkgroup->get_priority() < priority) {
+      priority = patched_talkgroup->get_priority();
+    }
+  }
+  return priority == -1;
+}
 
 void exit_interupt(int sig) { // can be called asynchronously
   exit_flag = 1;              // set flag
@@ -322,6 +366,15 @@ void manage_conventional_call(Call *call, Config &config) {
 }
 
 void manage_calls(Config &config, std::vector<Call *> &calls) {
+  time_t now = time(NULL);
+  for (auto it = ignored_encrypted_calls.begin(); it != ignored_encrypted_calls.end();) {
+    if (difftime(now, it->second) > config.call_timeout) {
+      it = ignored_encrypted_calls.erase(it);
+    } else {
+      ++it;
+    }
+  }
+
   bool ended_call = false;
   for (vector<Call *>::iterator it = calls.begin(); it != calls.end();) {
     Call *call = *it;
@@ -540,6 +593,13 @@ void handle_call_grant(TrunkMessage message, System *sys, bool grant_message, Co
   }
 
   if (!call_found) {
+    if (!config.track_ignored_calls && ignore_new_call(message, sys, message_talkgroup)) {
+      if (message.encrypted && !sys->get_monitorEncrypted()) {
+        ignored_encrypted_calls[ignored_call_key(message)] = time(NULL);
+      }
+      return;
+    }
+
     Call *call = Call::make(message, sys, config);
 
     Talkgroup *talkgroup = sys->find_talkgroup(call->get_talkgroup());
@@ -642,6 +702,16 @@ void handle_call_update(TrunkMessage message, System *sys, std::vector<Call *> &
 void handle_message(std::vector<TrunkMessage> messages, System *sys, Config &config, std::vector<Source *> &sources, std::vector<Call *> &calls, gr::top_block_sptr &tb) {
   for (std::vector<TrunkMessage>::iterator it = messages.begin(); it != messages.end(); it++) {
     TrunkMessage message = *it;
+
+    if (!config.track_ignored_calls && !sys->get_monitorEncrypted() &&
+        (message.message_type == GRANT || message.message_type == UPDATE ||
+         (config.record_uu_v_calls && (message.message_type == UU_V_GRANT || message.message_type == UU_V_UPDATE)))) {
+      auto ignored = ignored_encrypted_calls.find(ignored_call_key(message));
+      if (ignored != ignored_encrypted_calls.end()) {
+        ignored->second = time(NULL);
+        message.encrypted = true;
+      }
+    }
 
     switch (message.message_type) {
     case GRANT:
@@ -916,6 +986,7 @@ void process_recorder_message_queues(std::vector<Call *> &calls) {
 }
 
 int monitor_messages(Config &config, gr::top_block_sptr &tb, std::vector<Source *> &sources, std::vector<System *> &systems, std::vector<Call *> &calls) {
+  ignored_encrypted_calls.clear();
   gr::message::sptr msg;
 
   time_t last_status_time = time(NULL);

@@ -219,6 +219,8 @@ bool load_config(string config_file, Config &config, gr::top_block_sptr &tb, std
     BOOST_LOG_TRIVIAL(info) << "Record Unit to Unit Voice Calls: " << config.record_uu_v_calls;
     config.new_call_from_update = data.value("newCallFromUpdate", true);
     BOOST_LOG_TRIVIAL(info) << "New Call from UPDATE Messages: " << config.new_call_from_update;
+    config.track_ignored_calls = data.value("trackIgnoredCalls", true);
+    BOOST_LOG_TRIVIAL(info) << "Track Ignored Calls: " << config.track_ignored_calls;
     std::string frequency_format_string = data.value("frequencyFormat", "mhz");
 
     if (boost::iequals(frequency_format_string, "mhz")) {

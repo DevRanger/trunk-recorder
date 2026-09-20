@@ -1,5 +1,6 @@
 {
     "ver": 2,
+    "trackIgnoredCalls": false,
     "sources": [{
         "center": 857800000,
         "rate": 2048000,
