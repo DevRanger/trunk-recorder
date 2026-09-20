@@ -1,5 +1,6 @@
 #include "p25_parser.h"
 #include "../formatter.h"
+#include <limits>
 
 using namespace csv;
 
@@ -140,22 +141,37 @@ std::string P25Parser::channel_to_string(int chan, int sys_num) {
 }
 
 unsigned long P25Parser::bitset_shift_mask(boost::dynamic_bitset<> &tsbk, int shift, unsigned long long mask) {
-  boost::dynamic_bitset<> bitmask(tsbk.size(), mask);
-  unsigned long result = ((tsbk >> shift) & bitmask).to_ulong();
+  if (shift < 0 || static_cast<size_t>(shift) >= tsbk.size()) {
+    return 0;
+  }
 
-  // std::cout << "    " << std::dec<< shift << " " << tsbk.size() << " [ " <<
-  // mask << " ]  = " << result << " - " << ((tsbk >> shift) & bitmask) <<
-  // std::endl;
+  // Read only the requested field instead of allocating shifted/masked bitsets.
+  // The old bitmask constructor accepts unsigned long, including on 32-bit hosts.
+  unsigned long remaining_mask = static_cast<unsigned long>(mask);
+  unsigned long result = 0;
+  unsigned long result_bit = 1;
+  for (size_t source_bit = shift; remaining_mask && source_bit < tsbk.size(); ++source_bit, remaining_mask >>= 1, result_bit <<= 1) {
+    if ((remaining_mask & 1) && tsbk[source_bit]) {
+      result |= result_bit;
+    }
+  }
   return result;
 }
 
 unsigned long P25Parser::bitset_shift_left_mask(boost::dynamic_bitset<> &tsbk, int shift, unsigned long long mask) {
-  boost::dynamic_bitset<> bitmask(tsbk.size(), mask);
-  unsigned long result = ((tsbk << shift) & bitmask).to_ulong();
+  if (shift < 0 || static_cast<size_t>(shift) >= tsbk.size() || shift >= std::numeric_limits<unsigned long>::digits) {
+    return 0;
+  }
 
-  // std::cout << "    " << std::dec<< shift << " " << tsbk.size() << " [ " <<
-  // mask << " ]  = " << result << " - " << ((tsbk >> shift) & bitmask) <<
-  // std::endl;
+  // A left shift discards bits past the original bitset size as well as the mask.
+  unsigned long remaining_mask = static_cast<unsigned long>(mask) >> shift;
+  unsigned long result = 0;
+  unsigned long result_bit = 1UL << shift;
+  for (size_t source_bit = 0; remaining_mask && source_bit < tsbk.size() - shift; ++source_bit, remaining_mask >>= 1, result_bit <<= 1) {
+    if ((remaining_mask & 1) && tsbk[source_bit]) {
+      result |= result_bit;
+    }
+  }
   return result;
 }
 
