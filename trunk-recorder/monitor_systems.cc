@@ -27,6 +27,40 @@ uint64_t time_since_epoch_millisec() {
   return duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
 }
 
+bool stop_encrypted_call(Call *call) {
+  if (call->is_conventional() || call->get_state() != RECORDING ||
+      !call->get_encrypted() || call->get_system()->get_monitorEncrypted()) {
+    return false;
+  }
+
+  Recorder *recorder = call->get_recorder();
+  if (!recorder) {
+    return false;
+  }
+  Recorder *debug_recorder = call->get_debug_recording() ? call->get_debug_recorder() : NULL;
+  Recorder *sigmf_recorder = call->get_sigmf_recording() ? call->get_sigmf_recorder() : NULL;
+
+  // Use normal cleanup before detaching the recorder. Keep the call tracked so
+  // subsequent UPDATEs cannot repeatedly start a recorder for the same call.
+  call->conclude_call();
+  call->set_recorder(NULL);
+  call->set_debug_recorder(NULL);
+  call->set_sigmf_recorder(NULL);
+  call->set_debug_recording(false);
+  call->set_sigmf_recording(false);
+  call->set_state(MONITORING);
+  call->set_monitoring_state(ENCRYPTED);
+
+  plugman_setup_recorder(recorder);
+  if (debug_recorder) {
+    plugman_setup_recorder(debug_recorder);
+  }
+  if (sigmf_recorder) {
+    plugman_setup_recorder(sigmf_recorder);
+  }
+  return true;
+}
+
 bool start_recorder(Call *call, TrunkMessage message, Config &config, System *sys, std::vector<Source *> &sources) {
   Talkgroup *talkgroup = sys->find_talkgroup(call->get_talkgroup());
 
@@ -482,6 +516,9 @@ void handle_call_grant(TrunkMessage message, System *sys, bool grant_message, Co
     if ((call->get_talkgroup() == message.talkgroup) && (call->get_sys_num() == message.sys_num) && (call->get_freq() == message.freq) && (call->get_tdma_slot() == message.tdma_slot) && (call->get_phase2_tdma() == message.phase2_tdma)) {
       call_found = true;
       bool source_updated = call->update(message);
+      if (stop_encrypted_call(call)) {
+        plugman_calls_active(calls);
+      }
       if (source_updated) {
         plugman_call_start(call);
       }
@@ -587,6 +624,9 @@ void handle_call_update(TrunkMessage message, System *sys, std::vector<Call *> &
       }
 
       bool source_updated = call->update(message);
+      if (stop_encrypted_call(call)) {
+        plugman_calls_active(calls);
+      }
       if (source_updated) {
         plugman_call_start(call);
       }
@@ -853,6 +893,7 @@ void process_message_queues(std::vector<System *> &systems) {
 
 // Process message queues for recorders associated with Calls
 void process_recorder_message_queues(std::vector<Call *> &calls) {
+  bool stopped_call = false;
   for (vector<Call *>::iterator it = calls.begin(); it != calls.end(); ++it) {
     Call *call = *it;
     if (call->get_state() == RECORDING) {
@@ -862,9 +903,15 @@ void process_recorder_message_queues(std::vector<Call *> &calls) {
         // Verify recorder status as conventionals calls may be in a RECORDING:IDLE state
         if (p25_rec && (p25_rec->is_active())) {
           p25_rec->process_message_queues();
+          if (stop_encrypted_call(call)) {
+            stopped_call = true;
+          }
         }
       }
     }
+  }
+  if (stopped_call) {
+    plugman_calls_active(calls);
   }
 }
 

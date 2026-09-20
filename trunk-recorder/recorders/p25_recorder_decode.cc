@@ -18,6 +18,8 @@ p25_recorder_decode::p25_recorder_decode(Recorder *recorder)
                       gr::io_signature::make(1, 1, sizeof(float)),
                       gr::io_signature::make(0, 0, sizeof(float))) {
   d_recorder = recorder;
+  d_call = NULL;
+  d_message_talkgroup = 0;
 }
 
 p25_recorder_decode::~p25_recorder_decode() {
@@ -29,6 +31,10 @@ void p25_recorder_decode::stop() {
 }
 
 void p25_recorder_decode::start(Call *call) {
+  // Notifications still queued from the previous call must not mark the next
+  // call encrypted when this recorder is reused.
+  rx_queue->flush();
+  d_message_talkgroup = 0;
   levels->set_k(call->get_system()->get_digital_levels());
 
   if(call->get_phase2_tdma()){
@@ -311,6 +317,21 @@ void p25_recorder_decode::check_message_queue() {
       
       try {
         auto j = nlohmann::json::parse(msg_str);
+
+        // A traffic channel can move to another TG before this call times out.
+        // Require matching voice-channel identity before using its encryption.
+        if (j.contains("grpaddr")) {
+          d_message_talkgroup = j["grpaddr"].is_number_integer() ? j["grpaddr"].get<long>() : 0;
+        }
+
+        // OP25 sends encryption status without a "type" field. The monitor
+        // loop releases trunked recorders after this queue has been processed.
+        if (!d_call->is_conventional() && d_message_talkgroup > 0 &&
+            d_message_talkgroup == d_call->get_talkgroup() && j.contains("encrypted") &&
+            ((j["encrypted"].is_number_integer() && j["encrypted"] == 1) ||
+             (j["encrypted"].is_boolean() && j["encrypted"].get<bool>()))) {
+          d_call->set_encrypted(true);
+        }
         
         if (j.contains("type")) {
           std::string json_msg_type = j["type"];

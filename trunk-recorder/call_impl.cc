@@ -418,6 +418,11 @@ bool Call_impl::update(TrunkMessage message) {
     std::string loghdr = log_header( sys->get_short_name(), this->get_call_num(), this->get_talkgroup_display(), this->get_freq());
     BOOST_LOG_TRIVIAL(error) << loghdr << "C\033[0m\tCall_impl Update, message mismatch - \ttMsg Tg: " << message.talkgroup << "\tMsg Freq: " << message.freq;
   } else {
+    // Some UPDATEs omit service options. Only positive encryption information
+    // can change the call here; a missing flag must not clear an encrypted call.
+    if (message.encrypted) {
+      set_encrypted(true);
+    }
     return add_source(message.source);
   }
   return false;
