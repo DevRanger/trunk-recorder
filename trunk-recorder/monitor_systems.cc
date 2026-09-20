@@ -1010,6 +1010,7 @@ int monitor_messages(Config &config, gr::top_block_sptr &tb, std::vector<Source 
 
   smartnet_parser = new SmartnetParser(systems.front()); // this has to eventually be generic;
   p25_parser = new P25Parser();
+  p25_parser->set_metadata_enabled(config.p25_control_message_metadata);
   dmr_parser = new DmrParser();
 
   while (1) {

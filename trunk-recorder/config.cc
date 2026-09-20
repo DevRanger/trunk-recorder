@@ -240,6 +240,12 @@ bool load_config(string config_file, Config &config, gr::top_block_sptr &tb, std
     std::string log_level = data.value("logLevel", "info");
     BOOST_LOG_TRIVIAL(info) << "Log Level: " << log_level;
     set_logging_level(log_level);
+    config.p25_control_message_metadata = data.value("p25ControlMessageMetadata", true);
+    // Keep diagnostic text available when detailed logging is requested.
+    if (log_level == "debug" || log_level == "trace") {
+      config.p25_control_message_metadata = true;
+    }
+    BOOST_LOG_TRIVIAL(info) << "P25 Control Message Metadata: " << config.p25_control_message_metadata;
     BOOST_LOG_TRIVIAL(info) << "Color Console/Logfile Output: " << config.log_color;
 
     config.debug_recorder = data.value("debugRecorder", 0);

@@ -29,9 +29,11 @@ class P25Parser : public TrunkParser {
   std::map<int, std::map<int, Freq_Table>> freq_tables;
   std::map<int, Freq_Table>::iterator it;
   bool custom_freq_table_loaded = false;
+  bool metadata_enabled = true;
 
 public:
   P25Parser();
+  void set_metadata_enabled(bool enabled);
   long get_tdma_slot(int chan_id, int sys_num);
   double get_bandwidth(int chan_id, int sys_num);
   std::vector<TrunkMessage> decode_mbt_data(unsigned long opcode, boost::dynamic_bitset<> &header, boost::dynamic_bitset<> &mbt_data, unsigned long link_id, unsigned long nac, int sys_num);

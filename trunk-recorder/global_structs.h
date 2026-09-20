@@ -56,6 +56,7 @@ struct Config {
   int frequency_format;
   std::string filename_format;
   bool track_ignored_calls = true;
+  bool p25_control_message_metadata = true;
 };
 
 struct Audio_Postprocess_Config {

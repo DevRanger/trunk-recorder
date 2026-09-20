@@ -150,6 +150,7 @@ There is a list of available Plugins [here](./Plugins.md).
 | audioStreaming               |          | false                                            | **true** / **false**                                         | Whether or not to enable the audio streaming callbacks for plugins. |
 | newCallFromUpdate            |          | true                                             | **true** / **false**                                         | Allow for UPDATE trunking messages to start a new Call, in addition to GRANT messages. This may result in more Calls with no transmisions, and use more Recorders. The flipside is that it may catch parts of a Call that would have otherwise been missed. Turn this off if you are running out of Recorders. |
 | trackIgnoredCalls            |          | true                                             | **true** / **false**                                         | Track rejected trunked calls for logging and plugin call-status events. Set to **false** to skip creating new Call objects for unknown talkgroups excluded by `recordUnknown`, encrypted calls excluded by `monitorEncrypted`, and talkgroups with an effective priority of `-1`. See [Ignored call tracking](#ignored-call-tracking). |
+| p25ControlMessageMetadata    |          | true                                             | **true** / **false**                                         | Include diagnostic text in P25 control messages. Set to **false** to reduce string formatting and allocation work. Always enabled at `debug` or `trace` log levels. See [P25 control message metadata](#p25-control-message-metadata). |
 | softVocoder                  |          | false                                            | **true** / **false**                                         | Use the Software Decode vocoder from OP25 for P25 and DMR. Give it a try if you are hearing weird tones in your audio. Whether it makes your audio sound better or worse is a matter of preference. |
 | recordUUVCalls               |          | true                                             | **true** / **false**                                         | *P25 only* Record Unit to Unit Voice calls.        |
 | filenameFormat               |          |                                                  | string                                                       | A format string that controls the directory structure and filename for recorded calls. When set at the instance level it applies to all systems. See the [Filename Format](#filename-format) section below for full details. |
@@ -181,6 +182,20 @@ message, so changes to active patches or talkgroup priorities can take effect.
 Calls that become encrypted after recording starts still release their recorder
 and remain tracked until their normal timeout. Encryption cannot be filtered in
 advance when it is absent from both the control message and talkgroup file.
+
+### P25 control message metadata
+
+Set `"p25ControlMessageMetadata": false` at the top level of the configuration
+to skip building diagnostic text for P25 control messages. This reduces work for
+both accepted and rejected traffic, independently of `trackIgnoredCalls`.
+The default, `true`, preserves existing behavior. A `logLevel` of `debug` or
+`trace` automatically enables this text for troubleshooting.
+
+With this option disabled, P25 `trunk_message` plugin events still arrive with
+their structured fields (including talkgroup, frequency, source, and encryption
+flags), but their `meta` string is empty. Keep this option enabled if a plugin
+uses that diagnostic string. Call metadata, recording eligibility, and other
+system types are unaffected.
 
 ## Source Object
 
