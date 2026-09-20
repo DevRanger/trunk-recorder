@@ -105,7 +105,7 @@ bool stop_encrypted_call(Call *call) {
   return true;
 }
 
-bool start_recorder(Call *call, TrunkMessage message, Config &config, System *sys, std::vector<Source *> &sources) {
+bool start_recorder(Call *call, const TrunkMessage &message, Config &config, System *sys, std::vector<Source *> &sources) {
   Talkgroup *talkgroup = sys->find_talkgroup(call->get_talkgroup());
 
   bool source_found = false;
@@ -429,13 +429,13 @@ void manage_calls(Config &config, std::vector<Call *> &calls) {
   }
 }
 
-void current_system_status(TrunkMessage message, System *sys) {
+void current_system_status(const TrunkMessage &message, System *sys) {
   if (sys->update_status(message)) {
     plugman_setup_system(sys);
   }
 }
 
-void current_system_sysid(TrunkMessage message, System *sys) {
+void current_system_sysid(const TrunkMessage &message, System *sys) {
   if ((sys->get_system_type() == "p25") || (sys->get_system_type() == "conventionalP25")) {
     if (sys->update_sysid(message)) {
       plugman_setup_system(sys);
@@ -478,7 +478,7 @@ void unit_location(System *sys, long source_id, long talkgroup_num) {
 
 
 
-void handle_call_grant(TrunkMessage message, System *sys, bool grant_message, Config &config, std::vector<Source *> &sources, std::vector<Call *> &calls) {
+void handle_call_grant(const TrunkMessage &message, System *sys, bool grant_message, Config &config, std::vector<Source *> &sources, std::vector<Call *> &calls) {
   bool call_found = false;
   bool duplicate_grant = false;
   bool superseding_grant = false;
@@ -656,7 +656,7 @@ void handle_call_grant(TrunkMessage message, System *sys, bool grant_message, Co
   }
 }
 
-void handle_call_update(TrunkMessage message, System *sys, std::vector<Call *> &calls) {
+void handle_call_update(const TrunkMessage &message, System *sys, std::vector<Call *> &calls) {
   bool call_found = false;
 
   /* Notes: it is possible for 2 Calls to exist for the same talkgroup on different freq. This happens when a Talkgroup starts on a freq
@@ -699,8 +699,10 @@ void handle_call_update(TrunkMessage message, System *sys, std::vector<Call *> &
   }
 }
 
-void handle_message(std::vector<TrunkMessage> messages, System *sys, Config &config, std::vector<Source *> &sources, std::vector<Call *> &calls, gr::top_block_sptr &tb) {
-  for (std::vector<TrunkMessage>::iterator it = messages.begin(); it != messages.end(); it++) {
+void handle_message(const std::vector<TrunkMessage> &messages, System *sys, Config &config, std::vector<Source *> &sources, std::vector<Call *> &calls, gr::top_block_sptr &tb) {
+  for (std::vector<TrunkMessage>::const_iterator it = messages.begin(); it != messages.end(); it++) {
+    // Apply cached encryption to a local copy so plugins receive the original
+    // parsed messages through plugman_trunk_message.
     TrunkMessage message = *it;
 
     if (!config.track_ignored_calls && !sys->get_monitorEncrypted() &&
