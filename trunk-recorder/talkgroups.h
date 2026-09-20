@@ -4,10 +4,13 @@
 #include "talkgroup.h"
 #include <boost/algorithm/string.hpp>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 class Talkgroups {
   std::vector<Talkgroup *> talkgroups;
+  // Keep the vector in CSV order and index TGIDs separately for frequent lookups.
+  std::unordered_map<int, std::unordered_map<long, Talkgroup *>> talkgroup_index;
 
 public:
   Talkgroups();

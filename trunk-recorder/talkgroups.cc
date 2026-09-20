@@ -107,6 +107,8 @@ void Talkgroups::load_talkgroups(int sys_num, std::string filename) {
     }
     tg = new Talkgroup(sys_num, tg_number, mode, alpha_tag, description, tag, group, priority, preferredNAC);
     talkgroups.push_back(tg);
+    // emplace preserves the first matching CSV row when a TGID is duplicated.
+    talkgroup_index[sys_num].emplace(tg_number, tg);
     lines_pushed++;
   }
 
@@ -215,6 +217,7 @@ void Talkgroups::load_channels(int sys_num, std::string filename) {
     if (enable) {
       tg = new Talkgroup(sys_num, tg_number, freq, tone, alpha_tag, description, tag, group, squelch_db, signal_detector);
       talkgroups.push_back(tg);
+      talkgroup_index[sys_num].emplace(tg_number, tg);
       lines_pushed++;
     }
 
@@ -223,17 +226,13 @@ void Talkgroups::load_channels(int sys_num, std::string filename) {
 }
 
 Talkgroup *Talkgroups::find_talkgroup(int sys_num, long tg_number) {
-  Talkgroup *tg_match = NULL;
-
-  for (std::vector<Talkgroup *>::iterator it = talkgroups.begin(); it != talkgroups.end(); ++it) {
-    Talkgroup *tg = (Talkgroup *)*it;
-
-    if ((tg->sys_num == sys_num) && (tg->number == tg_number)) {
-      tg_match = tg;
-      break;
-    }
+  auto system_it = talkgroup_index.find(sys_num);
+  if (system_it == talkgroup_index.end()) {
+    return NULL;
   }
-  return tg_match;
+
+  auto talkgroup_it = system_it->second.find(tg_number);
+  return talkgroup_it == system_it->second.end() ? NULL : talkgroup_it->second;
 }
 
 Talkgroup *Talkgroups::find_talkgroup_by_freq(int sys_num, double freq) {
