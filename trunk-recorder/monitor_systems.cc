@@ -6,6 +6,7 @@
 #include <tuple>
 #include <boost/log/sinks/text_file_backend.hpp>
 #include <boost/log/core.hpp>
+#include <boost/thread/thread.hpp>
 
 using namespace std;
 
@@ -1004,6 +1005,8 @@ int monitor_messages(Config &config, gr::top_block_sptr &tb, std::vector<Source 
   SmartnetParser *smartnet_parser;
   P25Parser *p25_parser;
   DmrParser *dmr_parser;
+  const size_t control_message_batch_size = 32;
+  size_t first_system = 0;
 
   signal(SIGINT, exit_interupt);
   signal(SIGHUP, rotate_log_signal);
@@ -1049,13 +1052,20 @@ int monitor_messages(Config &config, gr::top_block_sptr &tb, std::vector<Source 
 
     plugman_poll_one();
 
-    for (vector<System *>::iterator sys_it = systems.begin(); sys_it != systems.end(); sys_it++) {
-      System_impl *system = (System_impl *)*sys_it;
+    // A continuously refilled queue must not hold up other systems or housekeeping.
+    bool control_message_batch_full = false;
+    for (size_t system_offset = 0; system_offset < systems.size(); ++system_offset) {
+      System_impl *system = (System_impl *)systems[(first_system + system_offset) % systems.size()];
 
       if ((system->get_system_type() == "p25") || (system->get_system_type() == "smartnet") || (system->get_system_type() == "dmr")) {
-        msg.reset();
-        msg = system->get_msg_queue()->delete_head_nowait();
-        while (msg != 0) {
+        size_t messages_processed = 0;
+        while (messages_processed < control_message_batch_size) {
+          // Check the budget before dequeueing so the next message stays queued.
+          msg = system->get_msg_queue()->delete_head_nowait();
+          if (!msg) {
+            break;
+          }
+          ++messages_processed;
           system->set_message_count(system->get_message_count() + 1);
 
           if (system->get_system_type() == "smartnet") {
@@ -1081,9 +1091,14 @@ int monitor_messages(Config &config, gr::top_block_sptr &tb, std::vector<Source 
           }
 
           msg.reset();
-          msg = system->get_msg_queue()->delete_head_nowait();
+        }
+        if (messages_processed == control_message_batch_size) {
+          control_message_batch_full = true;
         }
       }
+    }
+    if (!systems.empty()) {
+      first_system = (first_system + 1) % systems.size();
     }
     current_time = time(NULL);
     current_time_ms = time_since_epoch_millisec();
@@ -1098,7 +1113,12 @@ int monitor_messages(Config &config, gr::top_block_sptr &tb, std::vector<Source 
       management_timestamp = current_time;
     }
 
-    boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+    if (control_message_batch_full) {
+      // A full batch may leave work queued; give SDR threads a turn, then retry.
+      boost::this_thread::yield();
+    } else {
+      boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+    }
 
     float decode_rate_check_time_diff = current_time - last_decode_rate_check;
 

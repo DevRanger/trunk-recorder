@@ -48,6 +48,32 @@ H -.-> Z["Delete Call"]
 Z -.-> D
 ```
 
+### Control message scheduling
+
+Each main-loop pass handles at most 32 queued control messages per trunked
+system, rotating which system is visited first on the next pass. Messages stay
+in FIFO order within each system; reaching the batch limit leaves the next
+message in its queue. Parsing, call handling, and plugin notification still run
+once per dequeued message on the main thread.
+
+A full batch skips the normal 10 ms sleep and yields before the next pass. An
+exactly full batch can cause one extra pass even if its queue is already empty.
+Otherwise the normal sleep remains. Recorder notifications and plugin polling
+run between passes, and periodic call management and status checks retain their
+existing intervals. This bounds control-message work per system visit; it does
+not impose a time limit on individual parser or plugin calls.
+
+Checks for a Linux build:
+
+- Keep one control queue continuously busy while sending grants on another.
+  Expect both systems to progress, with recorder notifications and call timeout
+  management continuing between batches.
+- Deliver more than 32 messages to each supported trunked system type. Verify
+  FIFO order, no missing or duplicate plugin events, and continued processing
+  of the messages left queued after each batch.
+- Let all queues empty. Verify that idle CPU use settles back to the normal
+  polling behavior. Check shutdown while control queues remain busy.
+
 ### Encryption discovered after a call starts
 
 With `monitorEncrypted: false`, a trunked call that becomes known to be encrypted
