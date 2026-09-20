@@ -81,3 +81,23 @@ Checks for a Linux build, before deploying this change:
 - Repeat with `monitorEncrypted: true`, a conventional call, and two simultaneous
   allowed calls. Verify retained monitoring, normal conventional operation, and
   that only the encrypted trunked call releases its recorder.
+
+### Unknown talkgroup patch eligibility
+
+The normal recorder path and the early ignored-call filter share the same patch
+membership check. An unknown talkgroup can bypass `recordUnknown: false` only
+through a known member with priority other than `-1` whose CSV encryption mode
+is allowed by `monitorEncrypted`. This check controls admission of new calls;
+it does not end an existing recording when a patch changes.
+
+Checks for a Linux build:
+
+- With `recordUnknown: false`, grant an unknown supergroup patched only to a
+  disabled member or to an `E`/`TE`/`DE` member with `monitorEncrypted: false`.
+  Expect no recorder assignment with either value of `trackIgnoredCalls`.
+- Add an enabled clear member to that patch and start a fresh call. Expect normal
+  recording; the excluded member must not prevent the valid member from qualifying.
+- Enable `monitorEncrypted` and repeat with an enabled encrypted member. Expect
+  the patch to qualify. A disabled member must still fail to qualify on its own.
+- Delete or expire the eligible patch member, then start a fresh call. Expect
+  the unknown supergroup to be rejected again.

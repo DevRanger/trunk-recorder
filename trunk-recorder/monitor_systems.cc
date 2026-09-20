@@ -25,22 +25,29 @@ static IgnoredCallKey ignored_call_key(const TrunkMessage &message) {
   return std::make_tuple(message.sys_num, message.talkgroup, message.freq, message.tdma_slot, message.phase2_tdma);
 }
 
+static bool has_recordable_patch_member(System *sys, long talkgroup) {
+  // A CSV entry alone must not let a disabled or excluded encrypted member
+  // enable recording of an otherwise unknown talkgroup.
+  for (auto &tgid : sys->get_talkgroup_patch(talkgroup)) {
+    Talkgroup *member = sys->find_talkgroup(tgid);
+    if (!member || member->get_priority() == -1) {
+      continue;
+    }
+    if (!sys->get_monitorEncrypted() && (member->mode == "E" || member->mode == "TE" || member->mode == "DE")) {
+      continue;
+    }
+    return true;
+  }
+  return false;
+}
+
 static bool ignore_new_call(const TrunkMessage &message, System *sys, Talkgroup *talkgroup) {
   if (message.encrypted && !sys->get_monitorEncrypted()) {
     return true;
   }
 
   if (!talkgroup) {
-    if (sys->get_record_unknown()) {
-      return false;
-    }
-    // Preserve the existing exception for unknown supergroups with known members.
-    for (auto &tgid : sys->get_talkgroup_patch(message.talkgroup)) {
-      if (sys->find_talkgroup(tgid)) {
-        return false;
-      }
-    }
-    return true;
+    return !sys->get_record_unknown() && !has_recordable_patch_member(sys, message.talkgroup);
   }
 
   if (!sys->get_monitorEncrypted() && (talkgroup->mode == "E" || talkgroup->mode == "TE" || talkgroup->mode == "DE")) {
@@ -116,14 +123,10 @@ bool start_recorder(Call *call, const TrunkMessage &message, Config &config, Sys
   Recorder *debug_recorder;
   Recorder *sigmf_recorder;
 
-  if (!talkgroup){
-    BOOST_FOREACH (auto &TGID, sys->get_talkgroup_patch(call->get_talkgroup())) {  //for each talkgroup in the patch
-      if (sys->find_talkgroup(TGID) != NULL){  //if the patched talkgroup is known
-        override_record_unknown = true;
-        std::string loghdr = log_header( call->get_short_name(), call->get_call_num(), call->get_talkgroup_display(), call->get_freq());
-        BOOST_LOG_TRIVIAL(info) << loghdr << "\u001b[33mEnabling recording of TG not in Talkgroup File due to active supergroup patch\u001b[0m ";
-      }
-    }
+  if (!talkgroup && has_recordable_patch_member(sys, call->get_talkgroup())) {
+    override_record_unknown = true;
+    std::string loghdr = log_header( call->get_short_name(), call->get_call_num(), call->get_talkgroup_display(), call->get_freq());
+    BOOST_LOG_TRIVIAL(info) << loghdr << "\u001b[33mEnabling recording of TG not in Talkgroup File due to eligible active supergroup patch member\u001b[0m ";
   }
 
   if (!talkgroup && (sys->get_record_unknown() == false) && override_record_unknown == false) {
