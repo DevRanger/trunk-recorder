@@ -31,6 +31,11 @@ Plugins can *optionally* implement the following methods, based on usage, or set
 
 * `call_end(plugin_t * const plugin, Call_Data_t call_info)`
   * Called when a call has ended.
+  * P25 systems with `p25Vocoder: false` still send this notification, including for short or empty calls. Audio filenames are empty and `call_json.audio_available` is `false`; audio uploaders should return success without attempting an upload for these calls.
+
+* `voice_codec_data(Call *call, int codec_type, long tgid, uint32_t src_id, const uint32_t *params, int param_count, int errs)`
+  * Receives raw P25 voice parameters (IMBE for Phase 1, AMBE for Phase 2), independently of PCM `audio_stream` callbacks and `audioStreaming`. Parameters are valid only for the duration of the callback.
+  * `p25Vocoder: false` disables PCM synthesis and audio files for a system while retaining this callback. It works with any plugin using the raw voice API; see [P25 vocoder](../CONFIGURE.md#p25-vocoder).
 
 * `trunk_message(std::vector<TrunkMessage> messages, System *system)`
   * Called when a new message is received from the control channel of a Trunk system

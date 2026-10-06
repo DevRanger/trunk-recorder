@@ -265,5 +265,9 @@ public:
   // "connect_plus", "capacity_plus", "capacity_max", or "" (unknown).
   virtual void set_dmr_variant(const std::string &v) = 0;
   virtual std::string get_dmr_variant() = 0;
+
+  // Keep new virtual methods at the end for existing plugin callers.
+  virtual bool get_p25_vocoder() = 0;
+  virtual void set_p25_vocoder(bool enabled) = 0;
 };
 #endif

@@ -31,6 +31,7 @@
     "systems": [{
         "control_channels": [855462500],
         "type": "p25",
+        "p25Vocoder": true,
         "talkgroupsFile": "ChanList.csv",
         "shortName": "dcfems",
         "modulation": "qpsk"

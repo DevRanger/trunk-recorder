@@ -36,6 +36,10 @@ void p25_recorder_decode::start(Call *call) {
   rx_queue->flush();
   d_message_talkgroup = 0;
   levels->set_k(call->get_system()->get_digital_levels());
+  // Recorders are shared across systems, so apply this on every assignment.
+  d_vocoder_enabled = call->get_system()->get_p25_vocoder();
+  op25_frame_assembler->set_vocoder_enabled(d_vocoder_enabled);
+  wav_sink->set_record_audio(d_vocoder_enabled);
 
   if(call->get_phase2_tdma()){
     wav_sink->start_recording(call, call->get_tdma_slot());
@@ -126,7 +130,7 @@ void p25_recorder_decode::initialize(int silence_frames, bool d_soft_vocoder) {
 }
 
 void p25_recorder_decode::plugin_callback_handler(int16_t *samples, int sampleCount) {
-  if (d_call) {
+  if (d_call && d_vocoder_enabled) {
     plugman_audio_callback(d_call, d_recorder, samples, sampleCount);
   }
 }

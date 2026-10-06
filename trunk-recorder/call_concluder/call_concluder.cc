@@ -849,8 +849,13 @@ int create_call_json(Call_Data_t &call_info) {
     };
   }
 
+  if (call_info.filename.empty()) json_data["audio_available"] = false;
+
   // BUG FIX: move into call_json to avoid holding two full JSON copies in memory.
   call_info.call_json = std::move(json_data);
+
+  // Raw voice calls need in-memory metadata even when callLog is disabled.
+  if (call_info.status_filename.empty()) return 0;
 
   std::ofstream json_file(call_info.status_filename);
   if (!json_file.is_open()) {
@@ -927,7 +932,12 @@ void remove_call_files(const Call_Data_t &call_info, bool plugin_failure) {
 // ---------------------------------------------------------------------------
 
 Call_Data_t upload_call_worker(Call_Data_t call_info) {
-  if (call_info.status == INITIAL) {
+  if (call_info.status == INITIAL && call_info.filename.empty()) {
+    // No audio artifacts or uploadScript in raw voice mode. Still notify plugins,
+    // even if writing the optional call log fails, so stream teardown can finish.
+    create_call_json(call_info);
+  }
+  if (call_info.status == INITIAL && !call_info.filename.empty()) {
     std::vector<std::string> input_files;
     input_files.reserve(call_info.transmission_list.size());
 
@@ -1130,7 +1140,8 @@ Call_Data_t Call_Concluder::create_call_data(Call *call, System *sys, const Conf
   else if (call->get_phase2_tdma()) call_info.audio_type = "digital tdma";
   else                              call_info.audio_type = "digital";
 
-  const double min_tx_s = sys->get_min_tx_duration();
+  // Duration filters apply to audio files, not raw-stream lifecycle notifications.
+  const double min_tx_s = sys->get_p25_vocoder() ? sys->get_min_tx_duration() : 0.0;
 
   call_info.transmission_source_list.reserve(call_info.transmission_list.size());
   call_info.transmission_error_list.reserve(call_info.transmission_list.size());
@@ -1226,7 +1237,14 @@ Call_Data_t Call_Concluder::create_call_data(Call *call, System *sys, const Conf
     call_info.call_length_ms = 0;
   }
 
-  call_info = create_base_filename(call, call_info, sys, config);
+  if (sys->get_p25_vocoder() || call_info.call_log)
+    call_info = create_base_filename(call, call_info, sys, config);
+  if (!sys->get_p25_vocoder()) {
+    // Empty audio paths explicitly identify metadata-only call_end callbacks.
+    call_info.filename.clear();
+    call_info.converted.clear();
+    call_info.raw_audio_filename.clear();
+  }
   call_info.archive_files_on_failure = config.archive_files_on_failure;
   return call_info;
 }
@@ -1239,6 +1257,11 @@ void Call_Concluder::conclude_call(Call *call, System *sys, const Config &config
   if (call->get_state() == MONITORING && call->get_monitoring_state() == SUPERSEDED) {
     BOOST_LOG_TRIVIAL(info) << loghdr << "Call has been superseded. Removing files.";
     remove_call_files(call_info);
+    return;
+  }
+
+  if (!sys->get_p25_vocoder()) {
+    call_data_workers.push_back(std::async(std::launch::async, upload_call_worker, call_info));
     return;
   }
 

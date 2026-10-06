@@ -82,6 +82,7 @@ namespace gr {
                 int  d_msgq_id;
                 bool d_do_audio_output;
                 bool d_soft_vocoder;
+                bool d_vocoder_enabled = true;
                 int d_nac;
                 gr::msg_queue::sptr d_msg_queue;
                 std::deque<int16_t> &output_queue;
@@ -124,6 +125,7 @@ namespace gr {
 
             public:
                 void set_voice_codec_callback(voice_codec_cb_t cb, void *user_data) { voice_codec_cb_ = cb; voice_codec_cb_data_ = user_data; }
+                void set_vocoder_enabled(bool enabled) { d_vocoder_enabled = enabled; }
                 void set_debug(int debug);
                 void set_nac(int nac);
                 void reset_timer();

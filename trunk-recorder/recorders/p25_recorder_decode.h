@@ -45,6 +45,7 @@ protected:
   Recorder *d_recorder;
   Call *d_call;
   long d_message_talkgroup;
+  bool d_vocoder_enabled = true;
   gr::op25_repeater::p25_frame_assembler::sptr op25_frame_assembler;
   gr::msg_queue::sptr traffic_queue;
   gr::msg_queue::sptr rx_queue;

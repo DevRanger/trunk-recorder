@@ -760,6 +760,12 @@ void p25p2_tdma::handle_voice_frame(const uint8_t dibits[], int slot, int voice_
 		                params, 4, (int)errs, voice_codec_cb_data_);
 	}
 
+	if (!d_vocoder_enabled) {
+		// Preserve stream timing and tags; the recorder consumes these without audio output.
+		output_queue_decode.insert(output_queue_decode.end(), IMBE_SAMPLES_PER_FRAME, 0);
+		return;
+	}
+
 	// Only dequantize and synthesize if we have valid audio (decrypted or unencrypted)
 	if (audio_valid) {
 		rc = mbe_dequantizeAmbeTone(&tone_mp, &errs_mp, u);

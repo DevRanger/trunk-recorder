@@ -145,6 +145,11 @@ static const int MAX_IN = 1;	// maximum number of input streams
       p2tdma.set_voice_codec_callback(cb, user_data);
     }
 
+    void p25_frame_assembler_impl::set_vocoder_enabled(bool enabled) {
+      p1fdma.set_vocoder_enabled(enabled);
+      p2tdma.set_vocoder_enabled(enabled);
+    }
+
 void p25_frame_assembler_impl::send_grp_src_id() {
           long tdma_src_id = -1;
           long tdma_grp_id = -1;

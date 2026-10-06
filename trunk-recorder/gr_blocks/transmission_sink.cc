@@ -139,6 +139,7 @@ bool transmission_sink::start_recording(Call *call) {
     BOOST_LOG_TRIVIAL(trace) << "Start() - Current_Call & fp are not null! current_filename is: " << current_filename << " Length: " << d_sample_count << std::endl;
   }
   d_current_call = call;
+  current_filename.clear();
   d_current_call_num = call->get_call_num();
   d_current_call_freq = call->get_freq();
   d_conventional = call->is_conventional();
@@ -264,7 +265,7 @@ void transmission_sink::end_transmission() {
   if (d_sample_count > 0) {
     if (d_fp) {
       close_wav(false);
-    } else {
+    } else if (d_record_audio) {
       BOOST_LOG_TRIVIAL(error) << loghdr <<  "Ending transmission, sample_count is greater than 0 but d_fp is null" << std::endl;
     }
 
@@ -338,6 +339,11 @@ void transmission_sink::stop_recording() {
   d_current_call = NULL;
   d_termination_flag = false;
   state = AVAILABLE;
+}
+
+void transmission_sink::set_record_audio(bool enabled) {
+  gr::thread::scoped_lock guard(d_mutex);
+  d_record_audio = enabled;
 }
 
 void transmission_sink::close_wav(bool close_call) {
@@ -600,11 +606,13 @@ int transmission_sink::dowork(int noutput_items, gr_vector_const_void_star &inpu
       now_sys.time_since_epoch()).count();
     d_start_time = static_cast<time_t>(d_start_time_ms / 1000);
 
-    // create a new filename, based on the current time and source.
-    create_filename();
-    if (!open_internal(current_filename.c_str())) {
-      BOOST_LOG_TRIVIAL(error) << "can't open file";
-      return noutput_items;
+    if (d_record_audio) {
+      // create a new filename, based on the current time and source.
+      create_filename();
+      if (!open_internal(current_filename.c_str())) {
+        BOOST_LOG_TRIVIAL(error) << "can't open file";
+        return noutput_items;
+      }
     }
 
     BOOST_LOG_TRIVIAL(trace) << loghdr << "Starting new Transmission \tSrc ID:  " << curr_src_id;
@@ -613,13 +621,20 @@ int transmission_sink::dowork(int noutput_items, gr_vector_const_void_star &inpu
     state = RECORDING;
   }
 
-  if (!d_fp) // drop output on the floor
+  if (d_record_audio && !d_fp) // drop output on the floor
   {
     BOOST_LOG_TRIVIAL(error) << "Wav - Dropping items, no fp or Current Call: " << noutput_items << " Filename: " << current_filename << " Current sample count: " << d_sample_count << std::endl;
     return noutput_items;
   }
 
   if (state == RECORDING) {
+    if (!d_record_audio) {
+      // Count timing samples for duration/idle tracking without creating a WAV.
+      d_sample_count += noutput_items * d_nchans;
+      if (terminate_after_write) end_transmission();
+      d_last_write_time = std::chrono::steady_clock::now();
+      return noutput_items;
+    }
     for (nwritten = 0; nwritten < noutput_items; nwritten++) {
       for (int chan = 0; chan < d_nchans; chan++) {
         // Write zeros to channels which are in the WAV file

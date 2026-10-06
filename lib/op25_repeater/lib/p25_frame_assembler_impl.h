@@ -91,6 +91,7 @@ public:
       void clear_silence_frame_count();
       void clear();
       void set_voice_codec_callback(voice_codec_cb_t cb, void *user_data);
+      void set_vocoder_enabled(bool enabled) override;
       log_ts logts;
     };
 

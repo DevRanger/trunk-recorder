@@ -51,6 +51,7 @@ private:
   bool d_conventional;
   bool d_first_work;
   bool d_termination_flag;
+  bool d_record_audio = true;
   time_t d_start_time;
   time_t d_stop_time;
   std::int64_t d_start_time_ms;
@@ -127,6 +128,7 @@ public:
   bool start_recording(Call *call);
   bool start_recording(Call *call, int slot);
   void stop_recording();
+  void set_record_audio(bool enabled);
   void end_transmission();
   void set_source(long src);
   void set_sample_rate(unsigned int sample_rate);

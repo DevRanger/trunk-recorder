@@ -293,6 +293,7 @@ During the status display, each source will report the running average as well a
 | audio_postprocess        |          |                            | object                                                                                                                 | Optional per-system audio cleanup and loudness normalization settings applied when concluding calls. Cleanup filtering and loudnorm are configured independently. See the **Audio Post-Processing** section below for full details. |
 | unitScript               |          |                            | string                                                                                                                 | The filename of a script that runs when a radio (unit) registers (is turned on), affiliates (joins a talk group), deregisters (is turned off), gets an acknowledgment response, transmits, gets a data channel grant, a unit-unit answer request or a Location Registration Response. Passed as parameters:  `shortName radioID on\|join\|off\|ackresp\|call\|data\|ans_req\|location`. On joins and transmissions, `talkgroup` is passed as a fourth parameter; on answer requests, the `source` is.  On joins and transmissions, `patchedTalkgroups`  (comma separated list of talkgroup IDs) is passed as a fifth parameter if the talkgroup is part of a patch on the system. See *examples/unit-script.sh* for a logging example. Note that for paths relative to trunk-recorder, this should start with `./`( or `../`). |
 | audioArchive             |          | true                       | **true** / **false**                                                                                                   | Should the recorded audio files be kept after successfully uploading them? |
+| p25Vocoder               |          | true                       | **true** / **false**                                                                                                   | *For `p25` and `conventionalP25` systems.* Convert P25 voice to PCM audio. Set to **false** for raw IMBE/AMBE plugin forwarding without PCM streaming or audio files. See [P25 vocoder](#p25-vocoder). |
 | transmissionArchive      |          | false                      | **true** / **false**                                                                                                   | Should each of the individual transmission be kept? These transmission are combined together with other recent ones to form a single call. |
 | callLog                  |          | true                       | **true** / **false**                                                                                                   | Should a json file with the call details be kept after successful uploads? |
 | analogLevels             |          | 8                          | number (1-32)                                                                                                          | The amount of amplification that will be applied to the analog audio. |
@@ -319,6 +320,41 @@ During the status display, each source will report the running average as well a
 | deemphasisTau            |          | 0.000750                   | number                                                                                                                 | *Conventional systems only* configure the de-emphasis time constant. 750µs for NFM (default), 75µs for WFM North America, 50µs for WFM most other regions.   |
 | enabled                  |          | true                       | **true** / **false**                                                                                                   | control whether a configured system is enabled or disabled                 |
 | filenameFormat           |          |                            | string                                                                                                                 | A format string that controls the directory structure and filename for recorded calls. When set at the system level it overrides the instance-level `filenameFormat`. See the [Filename Format](#filename-format) section below for full details. |
+
+### P25 vocoder
+
+`p25Vocoder` defaults to `true`. Set it to `false` inside an individual `p25` or
+`conventionalP25` system to skip IMBE/AMBE speech synthesis while preserving the
+`voice_codec_data` plugin callbacks. This is independent of plugin name and of
+the global `audioStreaming` setting. `softVocoder` only selects a vocoder; it does
+not turn vocoding off.
+
+```json
+{
+  "type": "p25",
+  "shortName": "raw-p25",
+  "control_channels": [851000000],
+  "p25Vocoder": false,
+  "callLog": false
+}
+```
+
+With vocoding disabled, that system produces no PCM `audio_stream` callbacks,
+WAV/M4A files, post-processed audio, or `uploadScript` calls. `audioArchive` and
+`transmissionArchive` cannot enable recordings in this mode. Keep the option
+enabled for systems using PCM plugins such as `simplestream` or `dvmtrstream`, or
+audio uploaders. Other systems sharing the same source/recorder pool retain
+their own setting. Analog and DMR systems do not support `p25Vocoder: false`.
+
+TR still tracks transmission timing, source IDs, idle timeouts, and call endings.
+Internally, timing samples carry decoder tags to the transmission tracker; they
+are neither streamed to PCM plugins nor written as silent audio files. Raw
+`call_end` notifications include transmission metadata and empty audio filenames;
+`call_json.audio_available` is `false`. `callLog` still controls JSON files.
+`minDuration` and `minTransmissionDuration` do not suppress these raw call-end
+notifications, so plugins can close even short or empty calls. The built-in audio
+uploaders skip calls with empty audio filenames; third-party audio uploaders
+should do the same or exclude these systems.
 
 #### A note on MOTOTRBO RAS (Restricted Access to System)
 

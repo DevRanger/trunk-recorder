@@ -553,6 +553,7 @@ public:
   }
 
   int call_end(Call_Data_t call_info) {
+    if (call_info.filename.empty()) return 0; // Raw voice calls have no audio to upload.
     return upload(call_info);
   }
 

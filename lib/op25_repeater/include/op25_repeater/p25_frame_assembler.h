@@ -66,6 +66,8 @@ namespace gr {
       virtual  void clear_silence_frame_count() {};
       typedef void (*voice_codec_cb_t)(int codec_type, long tgid, uint32_t src_id, const uint32_t *params, int param_count, int errs, void *user_data);
       virtual void set_voice_codec_callback(voice_codec_cb_t cb, void *user_data) {};
+      // Disable synthesis while retaining sample timing and stream tags.
+      virtual void set_vocoder_enabled(bool enabled) {};
     };
 
   } // namespace op25_repeater

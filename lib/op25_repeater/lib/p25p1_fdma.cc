@@ -902,6 +902,12 @@ namespace gr {
 
                     if (d_do_audio_output) {
                         if ( !encrypted()) {
+                            if (!d_vocoder_enabled) {
+                                // Timing samples carry source/termination tags without synthesizing audio.
+                                if (!op25audio.enabled())
+                                    output_queue.insert(output_queue.end(), SND_FRAME, 0);
+                                continue;
+                            }
                             // This is the Vocoder that OP25 currently uses.
 
                             if (d_soft_vocoder) {

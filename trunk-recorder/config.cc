@@ -299,6 +299,15 @@ bool load_config(string config_file, Config &config, gr::top_block_sptr &tb, std
         system->set_system_type(element["type"]);
         BOOST_LOG_TRIVIAL(info) << "System Type: " << system->get_system_type();
 
+        system->set_p25_vocoder(element.value("p25Vocoder", true));
+        if (!system->get_p25_vocoder()) {
+          if (system->get_system_type() != "p25" && system->get_system_type() != "conventionalP25") {
+            BOOST_LOG_TRIVIAL(error) << "p25Vocoder: false requires a p25 or conventionalP25 system";
+            return false;
+          }
+          BOOST_LOG_TRIVIAL(info) << "P25 vocoder disabled: raw voice callbacks and call metadata only; no PCM streaming or audio files";
+        }
+
         // If it is a conventional System
         if ((system->get_system_type() == "conventional") || (system->get_system_type() == "conventionalP25") || (system->get_system_type() == "conventionalDMR") || (system->get_system_type() == "conventionalSIGMF")) {
 
