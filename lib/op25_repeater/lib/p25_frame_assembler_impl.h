@@ -92,6 +92,7 @@ public:
       void clear();
       void set_voice_codec_callback(voice_codec_cb_t cb, void *user_data);
       void set_vocoder_enabled(bool enabled) override;
+      void set_blip25_enabled(bool enabled) override;
       log_ts logts;
     };
 

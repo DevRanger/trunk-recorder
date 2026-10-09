@@ -150,6 +150,12 @@ static const int MAX_IN = 1;	// maximum number of input streams
       p2tdma.set_vocoder_enabled(enabled);
     }
 
+    void p25_frame_assembler_impl::set_blip25_enabled(bool enabled) {
+      // A new recorder assignment must not inherit another call's codec state.
+      p1fdma.set_blip25_enabled(enabled);
+      p2tdma.set_blip25_enabled(enabled);
+    }
+
 void p25_frame_assembler_impl::send_grp_src_id() {
           long tdma_src_id = -1;
           long tdma_grp_id = -1;

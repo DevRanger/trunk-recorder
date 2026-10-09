@@ -731,6 +731,11 @@ static const float PhzNz[57] = {
 
 software_imbe_decoder::software_imbe_decoder()
 {
+   reset();
+}
+
+void software_imbe_decoder::reset()
+{
    int i,j;
 	//initialize
    ER = 0;
@@ -739,6 +744,11 @@ software_imbe_decoder::software_imbe_decoder()
    L = 9;
    Old = 1; New = 0;
    psi1 = 0.0;
+   w0 = Oldw0 = Luv = 0.0;
+   // Clear the previous synthesis frame as well as its phase/pitch history.
+   memset(M, 0, sizeof(M));
+   memset(Mu, 0, sizeof(Mu));
+   memset(vee, 0, sizeof(vee));
    for(i=0; i < 58; i++) {
       for(j=0; j < 2; j++) {
          log2Mu[i][j] = 0.0;

@@ -294,6 +294,7 @@ During the status display, each source will report the running average as well a
 | unitScript               |          |                            | string                                                                                                                 | The filename of a script that runs when a radio (unit) registers (is turned on), affiliates (joins a talk group), deregisters (is turned off), gets an acknowledgment response, transmits, gets a data channel grant, a unit-unit answer request or a Location Registration Response. Passed as parameters:  `shortName radioID on\|join\|off\|ackresp\|call\|data\|ans_req\|location`. On joins and transmissions, `talkgroup` is passed as a fourth parameter; on answer requests, the `source` is.  On joins and transmissions, `patchedTalkgroups`  (comma separated list of talkgroup IDs) is passed as a fifth parameter if the talkgroup is part of a patch on the system. See *examples/unit-script.sh* for a logging example. Note that for paths relative to trunk-recorder, this should start with `./`( or `../`). |
 | audioArchive             |          | true                       | **true** / **false**                                                                                                   | Should the recorded audio files be kept after successfully uploading them? |
 | p25Vocoder               |          | true                       | **true** / **false**                                                                                                   | *For `p25` and `conventionalP25` systems.* Convert P25 voice to PCM audio. Set to **false** for raw IMBE/AMBE plugin forwarding without PCM streaming or audio files. See [P25 vocoder](#p25-vocoder). |
+| p25VocoderBackend        |          | op25                       | **op25** / **blip25**                                                                                                  | *For `p25` and `conventionalP25` systems.* Select the speech decoder for both P25 phases. `blip25` requires an optional build; `p25Vocoder: false` still disables synthesis. See [P25 vocoder](#p25-vocoder). |
 | transmissionArchive      |          | false                      | **true** / **false**                                                                                                   | Should each of the individual transmission be kept? These transmission are combined together with other recent ones to form a single call. |
 | callLog                  |          | true                       | **true** / **false**                                                                                                   | Should a json file with the call details be kept after successful uploads? |
 | analogLevels             |          | 8                          | number (1-32)                                                                                                          | The amount of amplification that will be applied to the analog audio. |
@@ -355,6 +356,28 @@ are neither streamed to PCM plugins nor written as silent audio files. Raw
 notifications, so plugins can close even short or empty calls. The built-in audio
 uploaders skip calls with empty audio filenames; third-party audio uploaders
 should do the same or exclude these systems.
+
+`p25VocoderBackend` defaults to `op25`, preserving the existing decoder and
+`softVocoder` selection. A build with Blip25 support can instead use:
+
+```json
+"p25Vocoder": true,
+"p25VocoderBackend": "blip25"
+```
+
+Blip25 decodes both Phase 1 IMBE and Phase 2 AMBE into the existing PCM path;
+recordings and PCM plugins require no changes. `softVocoder` does not affect
+Blip25. Blip25 state belongs to each recorder and is reset on a new call
+assignment. Raw voice callbacks are retained with either backend.
+
+Blip25 is an optional build dependency. Configure with `-DENABLE_BLIP25=ON`
+and `-DBLIP25_SOURCE_DIR=/path/to/blip25-vocoder`; Rust/Cargo 1.85 or newer must
+be available on the build machine. The local Blip25 1.0.0 checkout must include
+the `Vocoder::decode_info_into` reusable-buffer API used by this adapter. An
+unmodified 1.0.0 release does not yet have that API. The adapter is linked into
+the OP25 library; Rust is not needed on the machine running the binaries.
+The default build (`ENABLE_BLIP25=OFF`) needs no Rust toolchain. Selecting
+`blip25` in that build is a configuration error, rather than a silent fallback.
 
 #### A note on MOTOTRBO RAS (Restricted Access to System)
 

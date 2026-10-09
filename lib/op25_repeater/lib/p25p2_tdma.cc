@@ -146,6 +146,21 @@ bool p25p2_tdma::rx_sym(uint8_t sym)
 	return p2framer.rx_sym(sym);
 }
 
+void p25p2_tdma::set_blip25_enabled(bool enabled)
+{
+	// Reset OP25's prediction and tone history when a shared recorder returns to it.
+	if (d_blip25.enabled() && !enabled) {
+		vocoder.clear();
+		software_decoder.reset();
+		mbe_initMbeParms(&cur_mp, &prev_mp, &enh_mp);
+		mbe_initToneParms(&tone_mp);
+		mbe_initErrParms(&errs_mp);
+		mbe_err_cnt = 0;
+		tone_frame = false;
+	}
+	d_blip25.select(enabled);
+}
+
 void p25p2_tdma::set_slotid(int slotid)
 {
 	assert (slotid == 0 || slotid == 1);
@@ -767,7 +782,11 @@ void p25p2_tdma::handle_voice_frame(const uint8_t dibits[], int slot, int voice_
 	}
 
 	// Only dequantize and synthesize if we have valid audio (decrypted or unencrypted)
-	if (audio_valid) {
+	if (d_blip25.enabled()) {
+		uint16_t info[4];
+		for (int j = 0; j < 4; j++) info[j] = static_cast<uint16_t>(u[j]);
+		d_blip25.decode(info, 4, errs, errs_mp.E0 > 3 || errs_mp.E1 > 3, !audio_valid, samples_buf);
+	} else if (audio_valid) {
 		rc = mbe_dequantizeAmbeTone(&tone_mp, &errs_mp, u);
 		if (rc >= 0) {					// Tone Frame
 			if (rc == 0) {                  // Valid Tone

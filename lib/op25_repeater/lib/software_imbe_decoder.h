@@ -38,6 +38,7 @@ public:
 	 * Default constructor for the software_imbe_decoder.
 	 */
 	software_imbe_decoder();
+	void reset();
 
 	/**
 	 * Destructor for the software_imbe_decoder.

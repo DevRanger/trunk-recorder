@@ -13,6 +13,14 @@ void System_impl::set_p25_vocoder(bool enabled) {
   d_p25_vocoder = enabled;
 }
 
+std::string System_impl::get_p25_vocoder_backend() {
+  return d_p25_vocoder_backend;
+}
+
+void System_impl::set_p25_vocoder_backend(const std::string &backend) {
+  d_p25_vocoder_backend = backend;
+}
+
 std::string System_impl::get_api_key() {
   return this->api_key;
 }

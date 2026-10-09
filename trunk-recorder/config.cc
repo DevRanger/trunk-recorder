@@ -300,6 +300,23 @@ bool load_config(string config_file, Config &config, gr::top_block_sptr &tb, std
         BOOST_LOG_TRIVIAL(info) << "System Type: " << system->get_system_type();
 
         system->set_p25_vocoder(element.value("p25Vocoder", true));
+        const std::string p25_backend = element.value("p25VocoderBackend", std::string("op25"));
+        if (p25_backend != "op25" && p25_backend != "blip25") {
+          BOOST_LOG_TRIVIAL(error) << "p25VocoderBackend must be op25 or blip25";
+          return false;
+        }
+        if (p25_backend == "blip25") {
+          if (system->get_system_type() != "p25" && system->get_system_type() != "conventionalP25") {
+            BOOST_LOG_TRIVIAL(error) << "p25VocoderBackend: blip25 requires a p25 or conventionalP25 system";
+            return false;
+          }
+#ifndef TR_HAVE_BLIP25
+          BOOST_LOG_TRIVIAL(error) << "p25VocoderBackend: blip25 requires a build with ENABLE_BLIP25=ON";
+          return false;
+#endif
+        }
+        system->set_p25_vocoder_backend(p25_backend);
+        BOOST_LOG_TRIVIAL(info) << "P25 Vocoder Backend: " << p25_backend;
         if (!system->get_p25_vocoder()) {
           if (system->get_system_type() != "p25" && system->get_system_type() != "conventionalP25") {
             BOOST_LOG_TRIVIAL(error) << "p25Vocoder: false requires a p25 or conventionalP25 system";

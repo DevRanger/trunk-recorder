@@ -1,0 +1,19 @@
+[package]
+name = "tr-blip25"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.85"
+publish = false
+
+[lib]
+crate-type = ["staticlib"]
+path = "@CMAKE_CURRENT_SOURCE_DIR@/src/lib.rs"
+
+[dependencies]
+blip25-vocoder = { path = "@BLIP25_SOURCE_DIR@", version = "=1.0.0", default-features = false, features = ["decode"] }
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+
+[workspace]

@@ -25,6 +25,11 @@ cmake_minimum_required(VERSION 3.12)
 
 project(Trunk-Recorder LANGUAGES CXX C VERSION "5.2.0")
 
+option(ENABLE_BLIP25 "Build the optional Rust Blip25 P25 vocoder backend" OFF)
+if(ENABLE_BLIP25)
+   add_compile_definitions(TR_HAVE_BLIP25=1)
+   add_subdirectory(lib/blip25)
+endif()
 
 configure_file(cmake.h.in "${PROJECT_BINARY_DIR}/cmake.h" @ONLY)
 add_definitions(-DMANUAL_GITINFO="${MANUAL_GITINFO}")

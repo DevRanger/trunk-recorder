@@ -68,6 +68,7 @@ namespace gr {
       virtual void set_voice_codec_callback(voice_codec_cb_t cb, void *user_data) {};
       // Disable synthesis while retaining sample timing and stream tags.
       virtual void set_vocoder_enabled(bool enabled) {};
+      virtual void set_blip25_enabled(bool enabled) {};
     };
 
   } // namespace op25_repeater

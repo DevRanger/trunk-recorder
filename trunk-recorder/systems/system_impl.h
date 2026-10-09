@@ -340,6 +340,8 @@ public:
   std::string get_dmr_variant() override;
   bool get_p25_vocoder() override;
   void set_p25_vocoder(bool enabled) override;
+  std::string get_p25_vocoder_backend() override;
+  void set_p25_vocoder_backend(const std::string &backend) override;
 
 private:
   TalkgroupDisplayFormat talkgroup_display_format;
@@ -355,5 +357,6 @@ private:
   bool d_star_enabled;
   bool d_tps_enabled;
   bool d_p25_vocoder = true;
+  std::string d_p25_vocoder_backend = "op25";
 };
 #endif

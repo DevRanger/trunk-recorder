@@ -276,6 +276,15 @@ namespace gr {
             // This makes it easy to tell when a new Src Address has been received, all other times it will be -1
 			return addr;
 		}
+        void p25p1_fdma::set_blip25_enabled(bool enabled) {
+            // Resuming OP25 must not revive synthesis state from before Blip25.
+            if (d_blip25.enabled() && !enabled) {
+                vocoder.clear();
+                software_decoder.reset();
+            }
+            d_blip25.select(enabled);
+        }
+
 		void p25p1_fdma::clear() {
 			p1voice_decode.clear();
 		}
@@ -910,7 +919,13 @@ namespace gr {
                             }
                             // This is the Vocoder that OP25 currently uses.
 
-                            if (d_soft_vocoder) {
+                            if (d_blip25.enabled()) {
+                                uint16_t info[8];
+                                for (int j = 0; j < 8; j++) info[j] = static_cast<uint16_t>(u[j]);
+                                // OP25 reserves bit 0 of u7; Blip25 expects seven unshifted bits.
+                                info[7] >>= 1;
+                                d_blip25.decode(info, 8, errs, E0 > 3, false, snd);
+                            } else if (d_soft_vocoder) {
                                 // This is vocoder that is for half-rate
                                 software_decoder.decode_fullrate(snd, u[0], u[1], u[2], u[3], u[4], u[5], u[6], u[7], E0, ET);
                             } else {

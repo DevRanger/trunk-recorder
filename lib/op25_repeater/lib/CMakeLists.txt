@@ -74,6 +74,7 @@ list(APPEND op25_repeater_sources
     p25p2_sync.cc
     p25p2_tdma.cc
     p25p2_vf.cc
+    blip25_decoder.cc
     imbe_decoder.cc
     software_imbe_decoder.cc
     ambe.c
@@ -129,6 +130,13 @@ set(GR_FILTER_LIBRARIES ${GR_FILTER_LIBRARY})
 set(GR_PMT_LIBRARIES ${GR_PMT_LIBRARY})
 
 target_link_libraries(gnuradio-op25_repeater ${Boost_LIBRARIES} ${GNURADIO_RUNTIME_LIBRARIES} ${GR_PMT_LIBRARIES} ${GR_FILTER_LIBRARIES} )
+if(ENABLE_BLIP25)
+    target_link_libraries(gnuradio-op25_repeater tr_blip25 ${CMAKE_DL_LIBS} pthread m)
+    if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        # Do not export Rust's bundled standard-library symbols from OP25.
+        set_property(TARGET gnuradio-op25_repeater APPEND_STRING PROPERTY LINK_FLAGS " -Wl,--exclude-libs,libtr_blip25.a")
+    endif()
+endif()
 
 if(NOT Gnuradio_VERSION VERSION_LESS "3.10")
     target_link_libraries(gnuradio-op25_repeater

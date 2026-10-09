@@ -39,6 +39,7 @@ void p25_recorder_decode::start(Call *call) {
   // Recorders are shared across systems, so apply this on every assignment.
   d_vocoder_enabled = call->get_system()->get_p25_vocoder();
   op25_frame_assembler->set_vocoder_enabled(d_vocoder_enabled);
+  op25_frame_assembler->set_blip25_enabled(d_vocoder_enabled && call->get_system()->get_p25_vocoder_backend() == "blip25");
   wav_sink->set_record_audio(d_vocoder_enabled);
 
   if(call->get_phase2_tdma()){

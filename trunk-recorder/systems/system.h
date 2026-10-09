@@ -269,5 +269,7 @@ public:
   // Keep new virtual methods at the end for existing plugin callers.
   virtual bool get_p25_vocoder() = 0;
   virtual void set_p25_vocoder(bool enabled) = 0;
+  virtual std::string get_p25_vocoder_backend() = 0;
+  virtual void set_p25_vocoder_backend(const std::string &backend) = 0;
 };
 #endif

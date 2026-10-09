@@ -36,7 +36,8 @@ with tempfile.TemporaryDirectory(prefix="tr-p25-vocoder-") as temporary:
     # objects into this test so we exercise real decoder code, not a copied model.
     op25_dir = build / "lib/op25_repeater/lib"
     op25_link = shlex.split((op25_dir / "CMakeFiles/gnuradio-op25_repeater.dir/link.txt").read_text())
-    decoder_inputs = [str((op25_dir / a).resolve()) for a in op25_link if a.endswith((".o", ".a"))]
+    decoder_inputs = [str((op25_dir / a).resolve()) for a in op25_link
+                      if not a.startswith("-") and a.endswith((".o", ".a"))]
     library = next(a for a in link if a.endswith("libgnuradio-op25_repeater.so"))
     index = link.index(library)
     link[index:index + 1] = decoder_inputs
